@@ -63,9 +63,8 @@ Severs Deployed:
 - Node On Private Network no access to outside world except through squid
 - Master on public network
 
-** You will want to fork the following repository and configure it instead of using mine, as my project uses my own S3 bucket which will have to be modified in the terraform file: 
-[https://github.com/davegermiquet/kubernetesautodeploy][140]
-**
+**You will want to fork the following repository and configure it instead of using mine, as my project uses my own S3 bucket which will have to be modified in the terraform file: 
+[https://github.com/davegermiquet/kubernetesautodeploy][140]**
 
 
 <a name="decisionreason"></a>
@@ -162,7 +161,34 @@ Enter Your Fork Repository under the Branch
 <a name="terraform"></a>
 ### **Breaking down Terraform configuration file**
 
-The first thing that the jenkins application does, it makes sure 
+Terraform is an application that can create infrastructure for networks, computers, user levels, firewalls ... , in code, and it is persistent and stays the same,
+as long as no changes is done. I've configured the state to be aware on the S3 bucket, so it knows what to destroy, when I want to destroy the entire infrastructure.
+
+
+In between the terraform {} are the directives telling the terraform application what to do:
+```
+backend "s3" {
+    bucket = "terraforms3state"
+    key    = "autodeploy"
+    region = "us-east-1"
+}
+
+required_providers {
+    aws = {
+    source  = "hashicorp/aws"
+    version = "~> 2.70"
+    }
+}
+
+provider "aws" {
+profile = "default"
+region  = "us-east-1"
+}
+```
+
+This is where you define where you want to deploy the infrastructure and the s3 bucket. You will need to change these settings for your own particular AWS
+account.
+
 
 <a name="squid"></a>
 ### **Deploying Squid**
