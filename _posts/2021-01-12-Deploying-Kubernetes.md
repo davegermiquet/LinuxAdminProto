@@ -21,7 +21,8 @@ tags: [Kubernetes, Calico, AWS, Jenkins, Terraform ]
 [120]: <#calico>
 [130]: <#troubleshooting>
 [140]: <https://github.com/davegermiquet/kubernetesautodeploy>
-
+[150]: <#jenkinspre>
+[160]: <#jenkinsexplained>
 We will be going over the following steps:
 - [Final Configuration After Implementation][30]
 - [Technologies Used][10]
@@ -84,8 +85,13 @@ In order to prepare your AWS System you would need to do the following:
 - Create an API key/password with AWS, and enable it inside jenkins
 
 <a name="jenkins"></a>
+
+We will be going over the following steps:
+- [Pre-Setup Jenkisn][150]
+- [Jenkinsfile Explained and how it works][160]
 ### **Setting up Jenkins**
 
+<a name="jenkinspre"></a>
 #### Pre-Requisites:
 - docker, docker-compose
 
@@ -157,6 +163,11 @@ Select Multi Branch Pipeline
 ![image-title-here](/assets/img/jenkinsfirstpage.jpg){:class="img-responsive"}
 Enter Your Fork Repository under the Branch
 ![image-title-here](/assets/img/jenkinssecondpage.jpg){:class="img-responsive"}
+
+<a name="jenkinsexplained"></a>
+
+#### Jenkinsfile Explained Strategy
+
 
 <a name="terraform"></a>
 ### **Breaking down Terraform configuration file**
