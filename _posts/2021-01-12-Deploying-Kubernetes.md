@@ -212,6 +212,40 @@ The first 2 are disbled right now (will continue the journey n how they'll work 
 | ------- | ----------- |
 | TASK| Deploy or Destroy (Create the kubernetes or take the whole thing down on AWS) |
 
+
+
+```
+steps {
+   withCredentials([usernamePassword(credentialsId: 'AMAZON_CRED', passwordVariable: 'AWS_SECRET_ACCESS_KEY', usernameVariable: 'AWS_ACCESS_KEY_ID')]) {
+    echo 'Deploying to DEV/QA AWS INSTANCE'
+    sh "cd terraform;terraform init  -input=false"
+    sh "cd terraform;terraform ${TASK} -input=false -auto-approve"
+    script {
+       server_deployed = sh ( script: 'cd terraform;terraform output kuber_master_aws_instance_public_ip | sed "s/\\\"//g"', returnStdout: true).trim()
+        private_ip_deployed = sh ( script: 'cd terraform;terraform output kuber_master_aws_instance_private_ip | sed "s/\\\"//g"', returnStdout: true).trim()
+       node_one = sh ( script: 'cd terraform;terraform output kuber_node_aws_instance_private_ip | sed "s/\\\"//g"', returnStdout: true).trim()
+          }
+        }
+      }
+```
+
+Stage 1:
+
+
+This stage sets up the infrastructure of the amazon instance using Terraform it creates the following:
+
+- withCredentials function sets up the AWS API Key/Password for Terraform using environment variables
+- init, initializes terraform --input=false makes it s its not interactive
+- The Task is replaced with APPLY (for create and destroy for remove) which runs the procedure of the terraform yml to create/destroy saving a state file on a S3 bucket defined in the terraform file --auto-approve makes it so no confirmation happens on run
+
+Script Section makes it so it can receive all the output variables for the following EC2 for debugging and use of ansible scripts:
+- The Public IP to connect from your INTERNET jenkins
+- The private IP for master for internally on EC2
+- the private IP For ndoe for internally on EC2
+
+_ this Complete's stage 1
+
+
 <a name="terraform"></a>
 ### **Breaking down Terraform configuration file**
 
