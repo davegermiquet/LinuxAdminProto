@@ -243,7 +243,7 @@ Script Section makes it so it can receive all the output variables for the follo
 - The private IP for master for internally on EC2
 - the private IP For ndoe for internally on EC2
 
-_ this Complete's stage 1
+This Complete's stage 1 of creating the infrastructure for the kubernetes /docker and squid servers to be installed
 
 
 <a name="terraform"></a>
