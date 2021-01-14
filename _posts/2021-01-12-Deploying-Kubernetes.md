@@ -167,7 +167,50 @@ Enter Your Fork Repository under the Branch
 <a name="jenkinsexplained"></a>
 
 #### Jenkinsfile Explained Strategy
+```
+agent any
+environment {
+TF_IN_AUTOMATION      = '1'
+// Common SSH file for all amazon instances
+// SSH key for jenkins system for public key should be located below for copying to Amazon Platforms
+TF_VAR_SSH_PUB = readFile "/var/jenkins_home/.ssh/id_rsa.pub"
+AWS_DEFAULT_REGION="us-east-1"
+}
 
+// Paramterize the variable options for deployment
+parameters {
+choice(name: 'TASK', choices: ['apply','destroy'], description: 'deploy/destroy')
+string(name: 'AWS_FIRST_REGION', defaultValue: 'us-east-1', description: 'First Region to Deploy')
+string(name: 'AWS_SECOND_REGION', defaultValue: 'us-west-1', description: 'Second Region to Deploy')
+}
+```
+
+This section, is the pre-setup of the entire build to deploy Kubernetes, it sets up the following:
+agent - which agent
+
+Necessary environment variables:
+
+| ENV VAR |Description |
+| ------- | ----------- |
+| TF_IN_AUTOMATION      = '1' | Terraform automated flag for deploiying infrastructure |
+| TF_VAR_SSH_PUB = readFile "/var/jenkins_home/.ssh/id_rsa.pub" | read the SSH public key and copy over into terraform, and other ec2 instance for logging in|
+| AWS_DEFAULT_REGION="us-east-1" | This is the default region that it will deploy kubernetes on |
+
+```
+// Paramterize the variable options for deployment
+parameters {
+choice(name: 'TASK', choices: ['apply','destroy'], description: 'deploy/destroy')
+string(name: 'AWS_FIRST_REGION', defaultValue: 'us-east-1', description: 'First Region to Deploy')
+string(name: 'AWS_SECOND_REGION', defaultValue: 'us-west-1', description: 'Second Region to Deploy')
+}
+```
+
+This section sets up the input variables to be read by the Jenkins/TerraForm/Ansible during deployment for user inputted values
+The first 2 are disbled right now (will continue the journey n how they'll work - focus only on the task one)
+
+| ENV VAR |Description |
+| ------- | ----------- |
+| TASK| Deploy or Destroy (Create the kubernetes or take the whole thing down on AWS) |
 
 <a name="terraform"></a>
 ### **Breaking down Terraform configuration file**
