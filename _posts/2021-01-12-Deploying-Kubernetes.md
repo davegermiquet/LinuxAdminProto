@@ -371,7 +371,7 @@ This plugin activates and deploys the CALICO CNI plugin for the MASTER Kubernete
 ##### Stage 7:  Create the terraform files for the nodes, depending on dynamic number. 
 
 This uses ansible to use templates to create the amount of terraforms you ask for in parameters.
-
+```
  stage('Create infrastructure for node') {
               steps {
                     withCredentials([usernamePassword(credentialsId: 'AMAZON_CRED', passwordVariable: 'AWS_SECRET_ACCESS_KEY', usernameVariable: 'AWS_ACCESS_KEY_ID')]) {
@@ -388,12 +388,47 @@ This uses ansible to use templates to create the amount of terraforms you ask fo
                      }
                 }
              }
+```
+ stage('setup ssh on kubernetes nodes') {
+              environment {
+                  SERVER_DEPLOYED="${server_deployed}"
+                  PRIVATE_IP_DEPLOYED="${private_ip_deployed}"
+                  CMD_TO_RUN="${cmd_to_join}"
+                  TF_VAR_SSH_PUB = readFile "/var/jenkins_home/.ssh/id_rsa.pub"
+                  HTTP_PROXY="http://${private_ip_deployed}:3128"
+                 }
+              when {  expression { params.TASK == 'apply' } }
+              steps {
+                 script {
+                      for (ii = 0; ii <  Integer.parseInt(NODE_AMOUNT); ++ii) {
+                      env.singleNode = nodeIps[ii]
+                      sh '''
+                                 echo "Setup Bastion Hosts/Squid Server for Node"
+                                 scp -o "StrictHostKeyChecking=no" ${WORKSPACE}/scripts/autoscript.sh ec2-user@${SERVER_DEPLOYED}:/tmp/autoscript.sh
+                                 scp -o "StrictHostKeyChecking=no" /var/jenkins_home/.ssh/id_rsa  ec2-user@${SERVER_DEPLOYED}:/home/ec2-user/.ssh/id_rsa
+                                 ssh -l ec2-user -o "StrictHostKeyChecking=no" ${SERVER_DEPLOYED} touch /tmp/runningssh
+                                 ssh -f -o "ExitOnForwardFailure=yes" -L 2222:${singleNode}:22 ec2-user@${SERVER_DEPLOYED} /tmp/autoscript.sh &
+                                 sleep 5
+                                 scp -o "port=2222" -o "StrictHostKeyChecking=no" /var/jenkins_home/.ssh/id_rsa ec2-user@localhost:/home/ec2-user/.ssh/id_rsa
+                                 ssh -o "port=2222" -o "StrictHostKeyChecking=no" ec2-user@localhost sudo service sshd restart
+                                 echo "kuber_node_1 ansible_port=2222 ansible_host=localhost" >> inventory_hosts
+                                 ssh -o "StrictHostKeyChecking=no" ec2-user@${SERVER_DEPLOYED} scp -o "StrictHostKeyChecking=no" /home/ec2-user/run_to_connect_node.sh ec2-user@${singleNode}:/home/ec2-user/run_to_connect_node.sh
+                                ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -vv  -i inventory_hosts --user ec2-user --extra-vars "http_ansible_proxy=${HTTP_PROXY} cmd_to_run=${CMD_TO_RUN} kuburnetes_master=${PRIVATE_IP_DEPLOYED} workspace=${WORKSPACE} target=kuber_node_1" ${WORKSPACE}/playbooks/install-kubernetes-node-playbook.yml
+                                ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -vv  -i inventory_hosts --user ec2-user --extra-vars "http_ansible_proxy=${HTTP_PROXY} cmd_to_run=${CMD_TO_RUN} kuburnetes_master=${PRIVATE_IP_DEPLOYED} workspace=${WORKSPACE} target=kuber_node_1" ${WORKSPACE}/playbooks/install-addons-kubernetes.yml
+                                 echo "closing connection for this host"
+                                 ssh -o "StrictHostKeyChecking=no" ec2-user@${SERVER_DEPLOYED} rm /tmp/runningssh
+                                 sleep 7
+'''
+                        }
+                 }
 
-
+             }
+       }
+ ```
+ 
 ##### Stage 8:  Create the infrastructure for all nodes asked for in paramters.
 
-This deploys the infrastructure using terraform and then we create a for loop to gather all the ip addresses for the nodes and store it into variables to prepare to install every server depending and hook  it up to the master.
-I use enviroment variables of shell scripting and groovy in jenkins
+This stage is the last stage it installs all the dependings of the nodes and hooks it up to the masters and your kubernetes should be up with the desired nodes.
 
 <a name="terraform"></a>
 ### **Breaking down Terraform configuration file**
