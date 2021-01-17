@@ -389,6 +389,7 @@ This uses ansible to use templates to create the amount of terraforms you ask fo
                 }
              }
 ```
+```
  stage('setup ssh on kubernetes nodes') {
               environment {
                   SERVER_DEPLOYED="${server_deployed}"
