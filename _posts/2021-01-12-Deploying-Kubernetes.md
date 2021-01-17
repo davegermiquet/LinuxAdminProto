@@ -328,7 +328,7 @@ ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -vv  -i inventory_hosts --user 
 
 This stage will deploy the CNI PLUGIN, settings, for Calico, to get it ready to setup the clustesd networking
 
-```
+'''
 stage('install typha to kubernetes master') {
               environment {
               SERVER_DEPLOYED="${server_deployed}"
@@ -346,10 +346,10 @@ ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -vv  -i inventory_hosts --user 
               """
                  }
               }
-```
+'''
 
 
-##### Stage 6:  Install TYPHA Components and Node_calico and configure felix for Calico
+##### Stage 6:Install TYPHA Components and Node_calico and configure felix for Calico
 
 
 This plugin activates and deploys the CALICO CNI plugin for the MASTER Kubernetes Nodes
