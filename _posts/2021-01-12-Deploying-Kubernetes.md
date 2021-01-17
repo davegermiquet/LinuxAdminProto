@@ -372,6 +372,28 @@ This plugin activates and deploys the CALICO CNI plugin for the MASTER Kubernete
 
 This uses ansible to use templates to create the amount of terraforms you ask for in parameters.
 
+ stage('Create infrastructure for node') {
+              steps {
+                    withCredentials([usernamePassword(credentialsId: 'AMAZON_CRED', passwordVariable: 'AWS_SECRET_ACCESS_KEY', usernameVariable: 'AWS_ACCESS_KEY_ID')]) {
+                    sh "cd terraform_node;terraform init  -input=false"
+                    sh "cd terraform_node;terraform ${TASK} -input=false -auto-approve"
+                    script {
+                             nodeIps = new String[Integer.parseInt(NODE_AMOUNT)]
+                             for (ii = 0; ii < Integer.parseInt(NODE_AMOUNT); ++ii)
+                             {
+                               env.ii = ii
+                               nodeIps[ii] = sh ( script: 'cd terraform_node;terraform output KUBE_NODE_PRIVATE_IP_${ii} | sed "s/\\\"//g"', returnStdout: true).trim()
+                             }
+                         }
+                     }
+                }
+             }
+
+
+##### Stage 8:  Create the infrastructure for all nodes asked for in paramters.
+
+This deploys the infrastructure using terraform and then we create a for loop to gather all the ip addresses for the nodes and store it into variables to prepare to install every server depending and hook  it up to the master.
+I use enviroment variables of shell scripting and groovy in jenkins
 
 <a name="terraform"></a>
 ### **Breaking down Terraform configuration file**
