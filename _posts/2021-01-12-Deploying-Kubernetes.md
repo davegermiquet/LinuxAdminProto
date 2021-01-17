@@ -353,8 +353,25 @@ ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -vv  -i inventory_hosts --user 
 
 This plugin activates and deploys the CALICO CNI plugin for the MASTER Kubernetes Nodes
 
+```
+ stage('Create Kubernetes Terraform Files for node') {
+              environment {
+                KEY_NAME_DEPLOYER="${KEY_NAME_DEPLOYER}"
+                SECURITY_GROUP_GLOBAL="${SECURITY_GROUP_GLOBAL}"
+                PRIVATE_SUBNET="${PRIVATE_SUBNET}"
+                IAM_INSTANCE_PROFILE="${IAM_INSTANCE_PROFILE}"
+             }
+              when {  expression { params.TASK == 'apply' } }
+              steps {
+                    sh 'ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -vv  -i inventory_hosts --user ec2-user --extra-vars "target=127.0.0.1" ${WORKSPACE}/playbooks/create_terraform_node.yml'
+                }
+        }
+```
 
-##### Stage 7:  Install TYPHA Components and Node_calico and configure felix for Calico
+##### Stage 7:  Create the terraform files for the nodes, depending on dynamic number. 
+
+This uses ansible to use templates to create the amount of terraforms you ask for in parameters.
+
 
 <a name="terraform"></a>
 ### **Breaking down Terraform configuration file**
