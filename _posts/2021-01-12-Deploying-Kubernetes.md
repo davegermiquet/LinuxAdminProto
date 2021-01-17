@@ -174,14 +174,6 @@ TF_IN_AUTOMATION      = '1'
 // Common SSH file for all amazon instances
 // SSH key for jenkins system for public key should be located below for copying to Amazon Platforms
 TF_VAR_SSH_PUB = readFile "/var/jenkins_home/.ssh/id_rsa.pub"
-AWS_DEFAULT_REGION="us-east-1"
-}
-
-// Paramterize the variable options for deployment
-parameters {
-choice(name: 'TASK', choices: ['apply','destroy'], description: 'deploy/destroy')
-string(name: 'AWS_FIRST_REGION', defaultValue: 'us-east-1', description: 'First Region to Deploy')
-string(name: 'AWS_SECOND_REGION', defaultValue: 'us-west-1', description: 'Second Region to Deploy')
 }
 ```
 
@@ -194,42 +186,69 @@ Necessary environment variables:
 | ------- | ----------- |
 | TF_IN_AUTOMATION      = '1' | Terraform automated flag for deploiying infrastructure |
 | TF_VAR_SSH_PUB = readFile "/var/jenkins_home/.ssh/id_rsa.pub" | read the SSH public key and copy over into terraform, and other ec2 instance for logging in|
-| AWS_DEFAULT_REGION="us-east-1" | This is the default region that it will deploy kubernetes on |
 
 ```
-// Paramterize the variable options for deployment
 parameters {
 choice(name: 'TASK', choices: ['apply','destroy'], description: 'deploy/destroy')
-string(name: 'AWS_FIRST_REGION', defaultValue: 'us-east-1', description: 'First Region to Deploy')
+choice(name: 'REDEPLOY_MASTER', choices: ['yes','no'], description: 'Redeploy Master and nodes if no it will only reconfigure nodes')
+string(name: 'BUCKET', defaultValue : '',description: 'This is the S3 bucket Stateforms are saved please create on amazon')
+string(name: 'AWS_FIRST_REGION', defaultValue: 'us-east-1', description: 'First Region to Deploy for ec2 and s3 bucket')
 string(name: 'AWS_SECOND_REGION', defaultValue: 'us-west-1', description: 'Second Region to Deploy')
+string(name: 'DOMAIN', defaultValue:'',description: 'Domain for the kubernetes cluster(will create Route 53)')
+string(name: 'VPC_RANGE',defaultValue: '192.168.0.0/16',description: 'IP RANGE For VPC Created')
+string(name: 'IP_PUBILC_RANGE',defaultValue: '192.168.10.0/24',description: 'IP RANGE For Public Subnet')
+string(name: 'IP_PRIVATE_RANGE',defaultValue: '192.168.9.0/24',description: 'IP RANGE For Prviate Subnet')
+string(name: 'TYPE_EC2_INSTANCE',defaultValue: 't2.medium',description: 'EC2 Server Type')
+string(name: 'HARD_DISK_SIZE',defaultValue: '16',description: 'In Gigabytes')
+string(name: 'RED_HAT_IMAGE_AMI',defaultValue: 'ami-000db10762d0c4c05',description: 'RedHat Deployment Image version 7')
+string(name: 'NODE_AMOUNT',defaultValue: '2',description: 'Amount of Nodes Deployed')
 }
-```
-
-This section sets up the input variables to be read by the Jenkins/TerraForm/Ansible during deployment for user inputted values
-The first 2 are disbled right now (will continue the journey n how they'll work - focus only on the task one)
-
-| ENV VAR |Description |
-| ------- | ----------- |
-| TASK| Deploy or Destroy (Create the kubernetes or take the whole thing down on AWS) |
-
-
 
 ```
-steps {
-   withCredentials([usernamePassword(credentialsId: 'AMAZON_CRED', passwordVariable: 'AWS_SECRET_ACCESS_KEY', usernameVariable: 'AWS_ACCESS_KEY_ID')]) {
-    echo 'Deploying to DEV/QA AWS INSTANCE'
-    sh "cd terraform;terraform init  -input=false"
-    sh "cd terraform;terraform ${TASK} -input=false -auto-approve"
-    script {
-       server_deployed = sh ( script: 'cd terraform;terraform output kuber_master_aws_instance_public_ip | sed "s/\\\"//g"', returnStdout: true).trim()
-        private_ip_deployed = sh ( script: 'cd terraform;terraform output kuber_master_aws_instance_private_ip | sed "s/\\\"//g"', returnStdout: true).trim()
-       node_one = sh ( script: 'cd terraform;terraform output kuber_node_aws_instance_private_ip | sed "s/\\\"//g"', returnStdout: true).trim()
-          }
-        }
-      }
-```
+
+This section allows you to configure the terraform state S3 bucket, and variables to deploy the cluster.
+The 2 fields YOU must specifically choose, to your unique deloyment is S3 Bucket and DOMAIN(example trulycanadian.net)
+
+'''
+        stage('Create Kubernetes Terraform Files or master/node' ) {
+              when {  expression { REDEPLOY_MASTER=='yes' } }
+              steps {
+                    sh 'ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -vv  -i inventory_hosts --user ec2-user --extra-vars "target=127.0.0.1" ${WORKSPACE}/playbooks/create_terraform_master.yml'
+                }
+'''
+
 
 ##### Stage 1:
+
+This stage uses ansible, to create the the kubenetes master template based on the inputs you choose in the parameters section. We will take about this in the ansible configuration files.
+
+The field REDPLOY_MASTER  means it will only run if REDPLOY_MASTER is enabled.
+
+'''
+ stage('Create Environment for Kubernetes master and Docker') {
+
+              steps {
+                    withCredentials([usernamePassword(credentialsId: 'AMAZON_CRED', passwordVariable: 'AWS_SECRET_ACCESS_KEY', usernameVariable: 'AWS_ACCESS_KEY_ID')]) {
+                    echo 'Deploying to DEV/QA AWS INSTANCE'
+                    sh "cd terraform_master;terraform init  -input=false"
+                    sh "cd terraform_master;terraform ${TASK} -input=false -auto-approve"
+                    script {
+                        server_deployed = sh ( script: 'cd terraform_master;terraform output KUBE_MASTER_PUBLIC_IP | sed "s/\\\"//g"', returnStdout: true).trim()
+                        private_ip_deployed = sh ( script: 'cd terraform_master;terraform output KUBE_MASTER_PRIVATE_IP | sed "s/\\\"//g"', returnStdout: true).trim()
+                        KEY_NAME_DEPLOYER = sh ( script: 'cd terraform_master;terraform output KEY_NAME_DEPLOYER | sed "s/\\\"//g"', returnStdout: true).trim()
+                        SECURITY_GROUP_GLOBAL = sh ( script: 'cd terraform_master;terraform output SECURITY_GROUP_GLOBAL', returnStdout: true).trim()
+                        PRIVATE_SUBNET = sh ( script: 'cd terraform_master;terraform output PRIVATE_SUBNET  | sed "s/\\\"//g"', returnStdout: true).trim()
+                        IAM_INSTANCE_PROFILE = sh ( script: 'cd terraform_master;terraform output IAM_INSTANCE_PROFILE  | sed "s/\\\"//g"', returnStdout: true).trim()
+                        }
+                 }
+              }
+        }
+
+'''
+
+
+
+##### Stage 2:
 
 This stage sets up the infrastructure of the amazon instance using Terraform it creates the following:
 
@@ -240,43 +259,49 @@ This stage sets up the infrastructure of the amazon instance using Terraform it 
 Script Section makes it so it can receive all the output variables for the following EC2 for debugging and use of ansible scripts:
 - The Public IP to connect from your INTERNET jenkins
 - The private IP for master for internally on EC2
-- the private IP For ndoe for internally on EC2
+- It also has OUTPUT variables that it uses to Create the nodes, it stores it in variables to be used later by the node process
 
-This Complete's stage 1 of creating the infrastructure for the kubernetes /docker and squid servers to be installed
+I store these values in jenkins to pass to an ansible build to create a terraform node terraform file, that creates dynamic nodes.
 
-##### Stage 2:
+##### Stage 3:
 ```
-steps  {
-sh  '''
-   echo "awsserver ansible_port=22 ansible_host=${SERVER_DEPLOYED}" > inventory_hosts
-   ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -vv  -i inventory_hosts --user ubuntu --extra-vars "workspace=${WORKSPACE} target=awsserver"      ${WORKSPACE}/playbooks/deploy-squid-playbook.yml
-'''
-}
+ stage('install packages on aws instance and squid instance') {
+               environment {
+              SERVER_DEPLOYED="${server_deployed}"
+              PRIVATE_IP_DEPLOYED="${private_ip_deployed}"
+              }
+         when { expression { params.TASK == 'apply' && params.REDEPLOY_MASTER == 'yes' } }
+         steps  {
+              sh  '''
+              echo "awsserver ansible_port=22 ansible_host=${SERVER_DEPLOYED}" > inventory_hosts
+              ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -vv  -i inventory_hosts --user ec2-user --extra-vars "workspace=${WORKSPACE} target=awsserver" ${WORKSPACE}/playbooks/deploy-squid-playbook.yml
+              '''
+              }
+           }
 ```
 
 Description:
 
 Run Ansible File For Squid (See Ansible Documentation for each file) Use the SERVER_DEPLOYED variable to connect and run the ansible playbook
 
-##### Stage 3: Install and Deploy the Master
+##### Stage 4: Install and Deploy the Master
 ```
 stage('install kubernetes master') {
-   environment {
-     SERVER_DEPLOYED="${server_deployed}"
-     PRIVATE_IP_DEPLOYED="${private_ip_deployed}"
-     PRIVATE_NODE_IP="${node_one}"
-}
-when {  expression { params.TASK == 'apply' } }
-steps  {
-   sh  '''
-      echo "awsserver ansible_port=22 ansible_host=${SERVER_DEPLOYED}" > inventory_hosts
-      echo "kuber_node_1 ansible_port=2222 ansible_host=localhost" >> inventory_hosts
-      mkdir -p etc/kubernetes/
-     ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -vv  -i inventory_hosts --user ubuntu --extra-vars "kuburnetes_master=${PRIVATE_IP_DEPLOYED} workspace=${WORKSPACE} target=awsserver" ${WORKSPACE}/playbooks/install-kubernetes-master-playbook.yml
-     ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -vv  -i inventory_hosts --user ubuntu --extra-vars "kuburnetes_master=${PRIVATE_IP_DEPLOYED} workspace=${WORKSPACE} target=awsserver" ${WORKSPACE}/playbooks/create-ssl-certs.yml
-'''
-}
-}
+            environment {
+              SERVER_DEPLOYED="${server_deployed}"
+              PRIVATE_IP_DEPLOYED="${private_ip_deployed}"
+            }
+              when {  expression { params.TASK == 'apply' && params.REDEPLOY_MASTER=='yes' } }
+              steps  {
+                sh  '''
+                echo "awsserver ansible_port=22 ansible_host=${SERVER_DEPLOYED}" > inventory_hosts
+                echo "kuber_node_1 ansible_port=2222 ansible_host=localhost" >> inventory_hosts
+                mkdir -p etc/kubernetes/
+ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -vv  -i inventory_hosts --user ec2-user --extra-vars "kuburnetes_master=${PRIVATE_IP_DEPLOYED} workspace=${WORKSPACE} target=awsserver" ${WORKSPACE}/playbooks/install-kubernetes-master-playbook.yml
+ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -vv  -i inventory_hosts --user ec2-user --extra-vars "kuburnetes_master=${PRIVATE_IP_DEPLOYED} workspace=${WORKSPACE} target=awsserver" ${WORKSPACE}/playbooks/create-ssl-certs.yml
+              '''
+               }
+              }
 ```
 
 This Step Installs and Deploys the master on the first EC2 Instance. It sets up the environment  variables for the private ip and the public ip and the node. It sets up the inventory hosts file, creates a folder where we'll put the files generated by the master, and run the following playbooks which deploys the main instance of the kubernetes master and creates the ssl certificates.
