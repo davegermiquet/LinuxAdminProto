@@ -269,27 +269,25 @@ This stage uses ansible, to create the the kubenetes master template based on th
 
 The field REDPLOY_MASTER  means it will only run if REDPLOY_MASTER is enabled.
 
-'''
- stage('Create Environment for Kubernetes master and Docker') {
-
-              steps {
-                    withCredentials([usernamePassword(credentialsId: 'AMAZON_CRED', passwordVariable: 'AWS_SECRET_ACCESS_KEY', usernameVariable: 'AWS_ACCESS_KEY_ID')]) {
-                    echo 'Deploying to DEV/QA AWS INSTANCE'
-                    sh "cd terraform_master;terraform init  -input=false"
-                    sh "cd terraform_master;terraform ${TASK} -input=false -auto-approve"
-                    script {
-                        server_deployed = sh ( script: 'cd terraform_master;terraform output KUBE_MASTER_PUBLIC_IP | sed "s/\\\"//g"', returnStdout: true).trim()
-                        private_ip_deployed = sh ( script: 'cd terraform_master;terraform output KUBE_MASTER_PRIVATE_IP | sed "s/\\\"//g"', returnStdout: true).trim()
-                        KEY_NAME_DEPLOYER = sh ( script: 'cd terraform_master;terraform output KEY_NAME_DEPLOYER | sed "s/\\\"//g"', returnStdout: true).trim()
-                        SECURITY_GROUP_GLOBAL = sh ( script: 'cd terraform_master;terraform output SECURITY_GROUP_GLOBAL', returnStdout: true).trim()
-                        PRIVATE_SUBNET = sh ( script: 'cd terraform_master;terraform output PRIVATE_SUBNET  | sed "s/\\\"//g"', returnStdout: true).trim()
-                        IAM_INSTANCE_PROFILE = sh ( script: 'cd terraform_master;terraform output IAM_INSTANCE_PROFILE  | sed "s/\\\"//g"', returnStdout: true).trim()
-                        }
-                 }
-              }
-        }
-
-'''
+```
+stage('Create Environment for Kubernetes master and Docker')
+steps {
+withCredentials([usernamePassword(credentialsId: 'AMAZON_CRED', passwordVariable: 'AWS_SECRET_ACCESS_KEY', usernameVariable: 'AWS_ACCESS_KEY_ID')]) {
+echo 'Deploying to DEV/QA AWS INSTANCE'
+sh "cd terraform_master;terraform init  -input=false"
+sh "cd terraform_master;terraform ${TASK} -input=false -auto-approve"
+script {
+server_deployed = sh ( script: 'cd terraform_master;terraform output KUBE_MASTER_PUBLIC_IP | sed "s/\\\"//g"', returnStdout: true).trim()
+private_ip_deployed = sh ( script: 'cd terraform_master;terraform output KUBE_MASTER_PRIVATE_IP | sed "s/\\\"//g"', returnStdout: true).trim()
+KEY_NAME_DEPLOYER = sh ( script: 'cd terraform_master;terraform output KEY_NAME_DEPLOYER | sed "s/\\\"//g"', returnStdout: true).trim()
+SECURITY_GROUP_GLOBAL = sh ( script: 'cd terraform_master;terraform output SECURITY_GROUP_GLOBAL', returnStdout: true).trim()
+PRIVATE_SUBNET = sh ( script: 'cd terraform_master;terraform output PRIVATE_SUBNET  | sed "s/\\\"//g"', returnStdout: true).trim()
+IAM_INSTANCE_PROFILE = sh ( script: 'cd terraform_master;terraform output IAM_INSTANCE_PROFILE  | sed "s/\\\"//g"', returnStdout: true).trim()
+}
+}
+}
+}
+```
 
 
 
