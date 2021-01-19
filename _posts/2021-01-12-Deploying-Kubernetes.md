@@ -272,13 +272,13 @@ parameters {
 This section allows you to configure the terraform state S3 bucket, and variables to deploy the cluster.
 The 2 fields YOU must specifically choose, to your unique deloyment is S3 Bucket and DOMAIN(example trulycanadian.net)
 
-'''
+```
 stage('Create Kubernetes Terraform Files or master/node' ) {
 when {  expression { REDEPLOY_MASTER=='yes' } }
 steps {
 sh 'ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -vv  -i inventory_hosts --user ec2-user --extra-vars "target=127.0.0.1" ${WORKSPACE}/playbooks/create_terraform_master.yml'
 }
-'''
+```
 
 
 ##### Stage 1:
