@@ -23,6 +23,7 @@ tags: [Kubernetes, Calico, AWS, Jenkins, Terraform ]
 [140]: <https://github.com/davegermiquet/kubernetesautodeploy>
 [150]: <#jenkinspre>
 [160]: <#jenkinsexplained>
+[170]: <#resetstate>
 We will be going over the following steps:
 - [Final Configuration After Implementation][30]
 - [Technologies Used][10]
@@ -88,6 +89,7 @@ In order to prepare your AWS System you would need to do the following:
 
 We will be going over the following steps:
 - [Pre-Setup Jenkisn][150]
+- [Resetting the AWS state][170]
 - [Jenkinsfile Explained and how it works][160]
 ### **Setting up Jenkins**
 
@@ -186,6 +188,25 @@ USER_AWS
 
 For centos that user would be "centos" not ec2-user
 
+<a name="resetstate"></a>
+
+1. Run the build with the following settinsg:
+
+
+TASK = DESTROY
+DESTROY_NODES = Yes (Erase NODES first)
+Setup the DOMAIN/USER/AMI appropriately
+
+2. Run the build with the following settinsg:
+
+
+TASK = DESTROY
+DESTROY_NODES = NO (Erase NODES first)
+Setup the DOMAIN/USER/AMI appropriately
+
+It should now be destroyed completely on AWS
+
+
 <a name="jenkinsexplained"></a>
 
 #### **Jenkinsfile Explained Strategy**
@@ -241,13 +262,14 @@ sh 'ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -vv  -i inventory_hosts --u
 }
 '''
 
+
 ##### Stage 1:
 
 This stage uses ansible, to create the the kubenetes master template based on the inputs you choose in the parameters section. We will take about this in the ansible configuration files.
 
 The field REDPLOY_MASTER  means it will only run if REDPLOY_MASTER is enabled.
 
-```
+'''
  stage('Create Environment for Kubernetes master and Docker') {
 
               steps {
@@ -266,7 +288,8 @@ The field REDPLOY_MASTER  means it will only run if REDPLOY_MASTER is enabled.
                  }
               }
         }
-```
+
+'''
 
 
 
@@ -288,7 +311,7 @@ I store these values in jenkins to pass to an ansible build to create a terrafor
 ##### Stage 3:
 ```
  stage('install packages on aws instance and squid instance') {
-              environment {
+           environment {
               SERVER_DEPLOYED="${server_deployed}"
               PRIVATE_IP_DEPLOYED="${private_ip_deployed}"
               }
@@ -340,12 +363,12 @@ This Step Installs and Deploys the master on the first EC2 Instance. It sets up 
               }
               when {  expression { params.TASK == 'apply' &&  params.REDEPLOY_MASTER=='yes' } }
               steps {
-              sh """
+              sh '''
 ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -vv  -i inventory_hosts --user ec2-user --extra-vars "http_ansible_proxy=${HTTP_PROXY} cmd_to_run=${CMD_TO_RUN} kuburnetes_master=${PRIVATE_IP_DEPLOYED} workspace=${WORKSPACE} target=awsserver" ${WORKSPACE}/playbooks/install-addons-kubernetes.yml
-              """
+              '''
                 }
             }
-```
+
 ##### Stage 5: Install and Deploy the Master
 
 This stage will deploy the CNI PLUGIN, settings, for Calico, to get it ready to setup the clustesd networking
@@ -361,98 +384,23 @@ stage('install typha to kubernetes master') {
               }
               when {  expression { params.TASK == 'apply' && params.REDEPLOY_MASTER=='yes' } }
               steps {
-                sh """
+                sh '''
 ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -vv  -i inventory_hosts --user ec2-user --extra-vars "http_ansible_proxy=${HTTP_PROXY} cmd_to_run=${CMD_TO_RUN} kuburnetes_master=${PRIVATE_IP_DEPLOYED} workspace=${WORKSPACE} target=awsserver" ${WORKSPACE}/playbooks/install-typha-calinco-node.yml
 ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -vv  -i inventory_hosts --user ec2-user --extra-vars "http_ansible_proxy=${HTTP_PROXY} cmd_to_run=${CMD_TO_RUN} kuburnetes_master=${PRIVATE_IP_DEPLOYED} workspace=${WORKSPACE} target=awsserver" ${WORKSPACE}/playbooks/install-calico-node.yml
 ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -vv  -i inventory_hosts --user ec2-user --extra-vars "http_ansible_proxy=${HTTP_PROXY} cmd_to_run=${CMD_TO_RUN} kuburnetes_master=${PRIVATE_IP_DEPLOYED} workspace=${WORKSPACE} target=awsserver" ${WORKSPACE}/playbooks/configure-felix-configure-bgp.yml
-              """
+              '''
                  }
               }
 ```
 
 
-##### Stage 6:Install TYPHA Components and Node_calico and configure felix for Calico
+##### Stage 6:  Install TYPHA Components and Node_calico and configure felix for Calico
 
 
 This plugin activates and deploys the CALICO CNI plugin for the MASTER Kubernetes Nodes
 
-```
- stage('Create Kubernetes Terraform Files for node') {
-              environment {
-                KEY_NAME_DEPLOYER="${KEY_NAME_DEPLOYER}"
-                SECURITY_GROUP_GLOBAL="${SECURITY_GROUP_GLOBAL}"
-                PRIVATE_SUBNET="${PRIVATE_SUBNET}"
-                IAM_INSTANCE_PROFILE="${IAM_INSTANCE_PROFILE}"
-             }
-              when {  expression { params.TASK == 'apply' } }
-              steps {
-                    sh 'ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -vv  -i inventory_hosts --user ec2-user --extra-vars "target=127.0.0.1" ${WORKSPACE}/playbooks/create_terraform_node.yml'
-                }
-        }
-```
 
-##### Stage 7:  Create the terraform files for the nodes, depending on dynamic number. 
-
-This uses ansible to use templates to create the amount of terraforms you ask for in parameters.
-```
- stage('Create infrastructure for node') {
-              steps {
-                    withCredentials([usernamePassword(credentialsId: 'AMAZON_CRED', passwordVariable: 'AWS_SECRET_ACCESS_KEY', usernameVariable: 'AWS_ACCESS_KEY_ID')]) {
-                    sh "cd terraform_node;terraform init  -input=false"
-                    sh "cd terraform_node;terraform ${TASK} -input=false -auto-approve"
-                    script {
-                             nodeIps = new String[Integer.parseInt(NODE_AMOUNT)]
-                             for (ii = 0; ii < Integer.parseInt(NODE_AMOUNT); ++ii)
-                             {
-                               env.ii = ii
-                               nodeIps[ii] = sh ( script: 'cd terraform_node;terraform output KUBE_NODE_PRIVATE_IP_${ii} | sed "s/\\\"//g"', returnStdout: true).trim()
-                             }
-                         }
-                     }
-                }
-             }
-```
-```
- stage('setup ssh on kubernetes nodes') {
-              environment {
-                  SERVER_DEPLOYED="${server_deployed}"
-                  PRIVATE_IP_DEPLOYED="${private_ip_deployed}"
-                  CMD_TO_RUN="${cmd_to_join}"
-                  TF_VAR_SSH_PUB = readFile "/var/jenkins_home/.ssh/id_rsa.pub"
-                  HTTP_PROXY="http://${private_ip_deployed}:3128"
-                 }
-              when {  expression { params.TASK == 'apply' } }
-              steps {
-                 script {
-                      for (ii = 0; ii <  Integer.parseInt(NODE_AMOUNT); ++ii) {
-                      env.singleNode = nodeIps[ii]
-                      sh '''
-                                 echo "Setup Bastion Hosts/Squid Server for Node"
-                                 scp -o "StrictHostKeyChecking=no" ${WORKSPACE}/scripts/autoscript.sh ec2-user@${SERVER_DEPLOYED}:/tmp/autoscript.sh
-                                 scp -o "StrictHostKeyChecking=no" /var/jenkins_home/.ssh/id_rsa  ec2-user@${SERVER_DEPLOYED}:/home/ec2-user/.ssh/id_rsa
-                                 ssh -l ec2-user -o "StrictHostKeyChecking=no" ${SERVER_DEPLOYED} touch /tmp/runningssh
-                                 ssh -f -o "ExitOnForwardFailure=yes" -L 2222:${singleNode}:22 ec2-user@${SERVER_DEPLOYED} /tmp/autoscript.sh &
-                                 sleep 5
-                                 scp -o "port=2222" -o "StrictHostKeyChecking=no" /var/jenkins_home/.ssh/id_rsa ec2-user@localhost:/home/ec2-user/.ssh/id_rsa
-                                 ssh -o "port=2222" -o "StrictHostKeyChecking=no" ec2-user@localhost sudo service sshd restart
-                                 echo "kuber_node_1 ansible_port=2222 ansible_host=localhost" >> inventory_hosts
-                                 ssh -o "StrictHostKeyChecking=no" ec2-user@${SERVER_DEPLOYED} scp -o "StrictHostKeyChecking=no" /home/ec2-user/run_to_connect_node.sh ec2-user@${singleNode}:/home/ec2-user/run_to_connect_node.sh
-                                ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -vv  -i inventory_hosts --user ec2-user --extra-vars "http_ansible_proxy=${HTTP_PROXY} cmd_to_run=${CMD_TO_RUN} kuburnetes_master=${PRIVATE_IP_DEPLOYED} workspace=${WORKSPACE} target=kuber_node_1" ${WORKSPACE}/playbooks/install-kubernetes-node-playbook.yml
-                                ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -vv  -i inventory_hosts --user ec2-user --extra-vars "http_ansible_proxy=${HTTP_PROXY} cmd_to_run=${CMD_TO_RUN} kuburnetes_master=${PRIVATE_IP_DEPLOYED} workspace=${WORKSPACE} target=kuber_node_1" ${WORKSPACE}/playbooks/install-addons-kubernetes.yml
-                                 echo "closing connection for this host"
-                                 ssh -o "StrictHostKeyChecking=no" ec2-user@${SERVER_DEPLOYED} rm /tmp/runningssh
-                                 sleep 7
-'''
-                        }
-                 }
-
-             }
-       }
- ```
- 
-##### Stage 8:  Create the infrastructure for all nodes asked for in paramters.
-
-This stage is the last stage it installs all the dependings of the nodes and hooks it up to the masters and your kubernetes should be up with the desired nodes.
+##### Stage 7:  Install TYPHA Components and Node_calico and configure felix for Calico
 
 <a name="terraform"></a>
 ### **Breaking down Terraform configuration file**
