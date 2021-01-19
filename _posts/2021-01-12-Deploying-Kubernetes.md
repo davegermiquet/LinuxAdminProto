@@ -164,6 +164,28 @@ Select Multi Branch Pipeline
 Enter Your Fork Repository under the Branch
 ![image-title-here](/assets/img/jenkinssecondpage.jpg){:class="img-responsive"}
 
+###### Specific Settings you need to add:
+
+2 required fields specific to your install is:
+
+BUCKET: The initial S3 bucket on your amazon account where terraform will store its state files
+domain: (your domain on AWS for Multi Region Setup, so you can connect them)
+
+###### Suggestions:
+
+The following field: RED_HAT_IMAGE_AMI
+
+This build requires REDHAT type (yum package installations), it should work with Redhat 8 and Centos 8 find the AMIs.
+Here is link that could help:
+
+https://wiki.centos.org/Cloud/AWS
+
+If your changing the AMI image, you'll probably need to change this field as well:
+
+USER_AWS
+
+For centos that user would be "centos" not ec2-user
+
 <a name="jenkinsexplained"></a>
 
 #### **Jenkinsfile Explained Strategy**
@@ -189,34 +211,35 @@ Necessary environment variables:
 
 ```
 parameters {
-choice(name: 'TASK', choices: ['apply','destroy'], description: 'deploy/destroy')
-choice(name: 'REDEPLOY_MASTER', choices: ['yes','no'], description: 'Redeploy Master and nodes if no it will only reconfigure nodes')
-string(name: 'BUCKET', defaultValue : '',description: 'This is the S3 bucket Stateforms are saved please create on amazon')
-string(name: 'AWS_FIRST_REGION', defaultValue: 'us-east-1', description: 'First Region to Deploy for ec2 and s3 bucket')
-string(name: 'AWS_SECOND_REGION', defaultValue: 'us-west-1', description: 'Second Region to Deploy')
-string(name: 'DOMAIN', defaultValue:'',description: 'Domain for the kubernetes cluster(will create Route 53)')
-string(name: 'VPC_RANGE',defaultValue: '192.168.0.0/16',description: 'IP RANGE For VPC Created')
-string(name: 'IP_PUBILC_RANGE',defaultValue: '192.168.10.0/24',description: 'IP RANGE For Public Subnet')
-string(name: 'IP_PRIVATE_RANGE',defaultValue: '192.168.9.0/24',description: 'IP RANGE For Prviate Subnet')
-string(name: 'TYPE_EC2_INSTANCE',defaultValue: 't2.medium',description: 'EC2 Server Type')
-string(name: 'HARD_DISK_SIZE',defaultValue: '16',description: 'In Gigabytes')
-string(name: 'RED_HAT_IMAGE_AMI',defaultValue: 'ami-000db10762d0c4c05',description: 'RedHat Deployment Image version 7')
-string(name: 'NODE_AMOUNT',defaultValue: '2',description: 'Amount of Nodes Deployed')
-}
+   choice(name: 'TASK', choices: ['apply','destroy'], description: 'deploy/destroy')
+  choice(name: 'REDEPLOY_MASTER', choices: ['yes','no'], description: 'Redeploy Master and nodes if no it will only reconfigure nodes')
+  choice(name: 'DESTROY_NODES', choices: ['no','yes'], description: 'Only Destroy Nodes')
+  string(name: 'BUCKET', defaultValue : '',description: 'This is the S3 bucket Stateforms are saved please create on amazon')
+  string(name: 'AWS_FIRST_REGION', defaultValue: 'us-east-1', description: 'First Region to Deploy for ec2 and s3 bucket')
+  string(name: 'AWS_SECOND_REGION', defaultValue: 'us-west-1', description: 'Second Region to Deploy')
+  string(name: 'DOMAIN', defaultValue:'',description: 'Domain for the kubernetes cluster(will create Route 53)')
+  string(name: 'VPC_RANGE',defaultValue: '192.168.0.0/16',description: 'IP RANGE For VPC Created')
+  string(name: 'IP_PUBILC_RANGE',defaultValue: '192.168.10.0/24',description: 'IP RANGE For Public Subnet')
+  string(name: 'IP_PRIVATE_RANGE',defaultValue: '192.168.9.0/24',description: 'IP RANGE For Prviate Subnet')
+  string(name: 'TYPE_EC2_INSTANCE',defaultValue: 't2.medium',description: 'EC2 Server Type')
+  string(name: 'HARD_DISK_SIZE',defaultValue: '16',description: 'In Gigabytes')
+  string(name: 'RED_HAT_IMAGE_AMI',defaultValue: 'ami-096fda3c22c1c990a',description: 'RedHat Deployment Image version 7')
+  string(name: 'USER_AWS',defaultValue: 'ec2-user',description: 'user name to login as')
+  string(name: 'NODE_AMOUNT',defaultValue: '2',description: 'Amount of Nodes Deployed')
+          }
 
 ```
 
 This section allows you to configure the terraform state S3 bucket, and variables to deploy the cluster.
 The 2 fields YOU must specifically choose, to your unique deloyment is S3 Bucket and DOMAIN(example trulycanadian.net)
 
-```
-        stage('Create Kubernetes Terraform Files or master/node' ) {
-              when {  expression { REDEPLOY_MASTER=='yes' } }
-              steps {
-                    sh 'ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -vv  -i inventory_hosts --user ec2-user --extra-vars "target=127.0.0.1" ${WORKSPACE}/playbooks/create_terraform_master.yml'
-                }
-```
-
+'''
+stage('Create Kubernetes Terraform Files or master/node' ) {
+when {  expression { REDEPLOY_MASTER=='yes' } }
+steps {
+sh 'ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -vv  -i inventory_hosts --user ec2-user --extra-vars "target=127.0.0.1" ${WORKSPACE}/playbooks/create_terraform_master.yml'
+}
+'''
 
 ##### Stage 1:
 
