@@ -330,16 +330,16 @@ I store these values in jenkins to pass to an ansible build to create a terrafor
 ##### Stage 3:
 ```
  stage('install packages on aws instance and squid instance') {
-           environment {
-              SERVER_DEPLOYED="${server_deployed}"
-              PRIVATE_IP_DEPLOYED="${private_ip_deployed}"
+   environment {
+      SERVER_DEPLOYED="${server_deployed}"
+      PRIVATE_IP_DEPLOYED="${private_ip_deployed}"
               }
          when { expression { params.TASK == 'apply' && params.REDEPLOY_MASTER == 'yes' } }
          steps  {
-              sh  '''
-              echo "awsserver ansible_port=22 ansible_host=${SERVER_DEPLOYED}" > inventory_hosts
-              ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -vv  -i inventory_hosts --user ec2-user --extra-vars "workspace=${WORKSPACE} target=awsserver" ${WORKSPACE}/playbooks/deploy-squid-playbook.yml
-              '''
+          sh  '''
+          echo "awsserver ansible_port=22 ansible_host=${SERVER_DEPLOYED}" > inventory_hosts
+          ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -vv  -i inventory_hosts --user ec2-user --extra-vars "workspace=${WORKSPACE} target=awsserver" ${WORKSPACE}/playbooks/deploy-squid-playbook.yml
+          '''
               }
            }
 ```
@@ -351,19 +351,19 @@ Run Ansible File For Squid (See Ansible Documentation for each file) Use the SER
 ##### Stage 4: Install and Deploy the Master
 ```
 stage('install kubernetes master') {
-            environment {
-              SERVER_DEPLOYED="${server_deployed}"
-              PRIVATE_IP_DEPLOYED="${private_ip_deployed}"
-            }
-              when {  expression { params.TASK == 'apply' && params.REDEPLOY_MASTER=='yes' } }
-              steps  {
-                sh  '''
-                echo "awsserver ansible_port=22 ansible_host=${SERVER_DEPLOYED}" > inventory_hosts
-                echo "kuber_node_1 ansible_port=2222 ansible_host=localhost" >> inventory_hosts
-                mkdir -p etc/kubernetes/
+environment {
+  SERVER_DEPLOYED="${server_deployed}"
+  PRIVATE_IP_DEPLOYED="${private_ip_deployed}"
+    }
+  when {  expression { params.TASK == 'apply' && params.REDEPLOY_MASTER=='yes' } }
+  steps  {
+    sh  '''
+    echo "awsserver ansible_port=22 ansible_host=${SERVER_DEPLOYED}" > inventory_hosts
+    echo "kuber_node_1 ansible_port=2222 ansible_host=localhost" >> inventory_hosts
+    mkdir -p etc/kubernetes/
 ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -vv  -i inventory_hosts --user ec2-user --extra-vars "kuburnetes_master=${PRIVATE_IP_DEPLOYED} workspace=${WORKSPACE} target=awsserver" ${WORKSPACE}/playbooks/install-kubernetes-master-playbook.yml
 ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -vv  -i inventory_hosts --user ec2-user --extra-vars "kuburnetes_master=${PRIVATE_IP_DEPLOYED} workspace=${WORKSPACE} target=awsserver" ${WORKSPACE}/playbooks/create-ssl-certs.yml
-              '''
+   '''
                }
               }
 ```
@@ -372,21 +372,22 @@ This Step Installs and Deploys the master on the first EC2 Instance. It sets up 
 
 
 ```
-       stage('install addons to master') {
-              environment {
-                SERVER_DEPLOYED="${server_deployed}"
-                 PRIVATE_IP_DEPLOYED="${private_ip_deployed}"
-                 CMD_TO_RUN="${cmd_to_join}"
-                 TF_VAR_SSH_PUB = readFile "/var/jenkins_home/.ssh/id_rsa.pub"
-                 HTTP_PROXY="http://${private_ip_deployed}:3128"
-              }
-              when {  expression { params.TASK == 'apply' &&  params.REDEPLOY_MASTER=='yes' } }
-              steps {
-              sh '''
+stage('install addons to master') {
+environment {
+ SERVER_DEPLOYED="${server_deployed}"
+ PRIVATE_IP_DEPLOYED="${private_ip_deployed}"
+ CMD_TO_RUN="${cmd_to_join}"
+ TF_VAR_SSH_PUB = readFile "/var/jenkins_home/.ssh/id_rsa.pub"
+ HTTP_PROXY="http://${private_ip_deployed}:3128"
+  }
+  when {  expression { params.TASK == 'apply' &&  params.REDEPLOY_MASTER=='yes' } }
+  steps {
+  sh '''
 ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -vv  -i inventory_hosts --user ec2-user --extra-vars "http_ansible_proxy=${HTTP_PROXY} cmd_to_run=${CMD_TO_RUN} kuburnetes_master=${PRIVATE_IP_DEPLOYED} workspace=${WORKSPACE} target=awsserver" ${WORKSPACE}/playbooks/install-addons-kubernetes.yml
-              '''
-                }
-            }
+'''
+}
+}
+```
 
 ##### Stage 5: Install and Deploy the Master
 
@@ -394,22 +395,22 @@ This stage will deploy the CNI PLUGIN, settings, for Calico, to get it ready to 
 
 ```
 stage('install typha to kubernetes master') {
-              environment {
-              SERVER_DEPLOYED="${server_deployed}"
-              PRIVATE_IP_DEPLOYED="${private_ip_deployed}"
-              CMD_TO_RUN="${cmd_to_join}"
-              TF_VAR_SSH_PUB = readFile "/var/jenkins_home/.ssh/id_rsa.pub"
-              HTTP_PROXY="http://${private_ip_deployed}:3128"
-              }
-              when {  expression { params.TASK == 'apply' && params.REDEPLOY_MASTER=='yes' } }
-              steps {
-                sh '''
+  environment {
+  SERVER_DEPLOYED="${server_deployed}"
+  PRIVATE_IP_DEPLOYED="${private_ip_deployed}"
+  CMD_TO_RUN="${cmd_to_join}"
+  TF_VAR_SSH_PUB = readFile "/var/jenkins_home/.ssh/id_rsa.pub"
+  HTTP_PROXY="http://${private_ip_deployed}:3128"
+  }
+  when {  expression { params.TASK == 'apply' && params.REDEPLOY_MASTER=='yes' } }
+  steps {
+    sh '''
 ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -vv  -i inventory_hosts --user ec2-user --extra-vars "http_ansible_proxy=${HTTP_PROXY} cmd_to_run=${CMD_TO_RUN} kuburnetes_master=${PRIVATE_IP_DEPLOYED} workspace=${WORKSPACE} target=awsserver" ${WORKSPACE}/playbooks/install-typha-calinco-node.yml
 ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -vv  -i inventory_hosts --user ec2-user --extra-vars "http_ansible_proxy=${HTTP_PROXY} cmd_to_run=${CMD_TO_RUN} kuburnetes_master=${PRIVATE_IP_DEPLOYED} workspace=${WORKSPACE} target=awsserver" ${WORKSPACE}/playbooks/install-calico-node.yml
 ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -vv  -i inventory_hosts --user ec2-user --extra-vars "http_ansible_proxy=${HTTP_PROXY} cmd_to_run=${CMD_TO_RUN} kuburnetes_master=${PRIVATE_IP_DEPLOYED} workspace=${WORKSPACE} target=awsserver" ${WORKSPACE}/playbooks/configure-felix-configure-bgp.yml
-              '''
-                 }
-              }
+'''
+   }
+  }
 ```
 
 
@@ -433,29 +434,7 @@ Terraform is an application that can create infrastructure for networks, compute
 as long as no changes is done. I've configured the state to be aware on the S3 bucket, so it knows what to destroy, when I want to destroy the entire infrastructure.
 
 
-In between the terraform {} are the directives telling the terraform application what to do:
-```
-backend "s3" {
-    bucket = "terraforms3state"
-    key    = "autodeploy"
-    region = "us-east-1"
-}
-
-required_providers {
-    aws = {
-    source  = "hashicorp/aws"
-    version = "~> 2.70"
-    }
-}
-
-provider "aws" {
-profile = "default"
-region  = "us-east-1"
-}
-```
-
-This is where you define where you want to deploy the infrastructure and the s3 bucket. You will need to change these settings for your own particular AWS
-account.
+# Tune in to next publication!
 
 
 <a name="squid"></a>
