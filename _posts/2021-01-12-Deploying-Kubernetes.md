@@ -24,20 +24,16 @@ tags: [Kubernetes, Calico, AWS, Jenkins, Terraform ]
 [150]: <#jenkinspre>
 [160]: <#jenkinsexplained>
 [170]: <#resetstate>
-We will be going over the following steps:
+[180]: <#ansiblemain>
+[183]: <#ansiblefile1>
+
 - [Final Configuration After Implementation][30]
 - [Technologies used and why I used this design][10]
 - [Preparing AWS For Terraform Deployment][20]
 - [Setting up Jenkins][40]
 - [Terraform Description/ How it Works][50]
-- [Deploying Squid][60]
-- [Deploying the Master Kubernetes][70]
-- [Settings up the SSL Certificates][80]
-- [Deploying the Node Kubernetes][90]
-- [Install the CNI Plugin][100]
-- [Install the Typha Container][110]
-- [Installing Calico Container][120]
-- [TroubleShooting and Debugging][130]
+- [Ansible Explanation /  How it Works][60]
+- [Ansible Explanation Sections /  How it Works][60]
 
 
 <a name="finalconfig"></a>
@@ -437,26 +433,18 @@ as long as no changes is done. I've configured the state to be aware on the S3 b
 # Tune in to next publication!
 
 
-<a name="squid"></a>
-### **Deploying Squid**
+<a name="ansiblemain"></a>
 
-<a name="kubemaster"></a>
-### **Deploying the Master Kubernetes**
+# Ansible Section
 
-<a name="sslsetup"></a>
-### **Settings up the SSL Certificates**
-
-
-<a name="kubenode"></a>
-### **Deploying the Node Kubernetes**<a name="Install CNI Plugin"></a>
-<a name="cniplugin"></a>
-### **Install the CNI Plugin**
-
-<a name="typha"></a>
-### **Install the Typha Container**<a name="typha"></a>
-### **Installing Calico Container**
-<a name="calico"></a>
-
+## How the individual playbooks work
+- [Deploying Squid][60]
+- [Deploying the Master Kubernetes][70]
+- [Settings up the SSL Certificates][80]
+- [Deploying the Node Kubernetes][90]
+- [Install the CNI Plugin][100]
+- [Install the Typha Container][110]
+- [Installing Calico Container][120]
 <a name="troubleshooting"></a>
 ## **TroubleShooting and Debugging**
 ### **TroubleShooting and Debugging**
