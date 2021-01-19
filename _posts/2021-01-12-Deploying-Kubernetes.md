@@ -156,15 +156,15 @@ Select Manage Credentials
 Add the following as your credentials (AWS KEY/PASS) pair.
 Use the ID as "AMAZON_CRED"
 
-![image-title-here](/assets/img/jenkinspage4.jpg){:class="img-responsive"}
+![image-title-here](/assets/img/jenkinspage4.jpg)
 
 After Adding your credentials:
 
 Select New Item Option
 Select Multi Branch Pipeline
-![image-title-here](/assets/img/jenkinsfirstpage.jpg){:class="img-responsive"}
+![image-title-here](/assets/img/jenkinsfirstpage.jpg)
 Enter Your Fork Repository under the Branch
-![image-title-here](/assets/img/jenkinssecondpage.jpg){:class="img-responsive"}
+![image-title-here](/assets/img/jenkinssecondpage.jpg)
 
 ###### Specific Settings you need to add:
 
