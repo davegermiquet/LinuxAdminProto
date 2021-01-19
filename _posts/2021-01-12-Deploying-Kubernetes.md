@@ -26,7 +26,7 @@ tags: [Kubernetes, Calico, AWS, Jenkins, Terraform ]
 [170]: <#resetstate>
 We will be going over the following steps:
 - [Final Configuration After Implementation][30]
-- [Technologies Used][10]
+- [Technologies used and why I used this design][10]
 - [Preparing AWS For Terraform Deployment][20]
 - [Setting up Jenkins][40]
 - [Terraform Description/ How it Works][50]
