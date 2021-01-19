@@ -421,6 +421,11 @@ This plugin activates and deploys the CALICO CNI plugin for the MASTER Kubernete
 
 ##### Stage 7:  Install TYPHA Components and Node_calico and configure felix for Calico
 
+
+
+# Tune in to next publication!
+
+
 <a name="terraform"></a>
 ### **Breaking down Terraform configuration file**
 
