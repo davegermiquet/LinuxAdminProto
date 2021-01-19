@@ -77,6 +77,27 @@ Severs Deployed:
 - Terraform
 - Ansible
 
+### Summary on components:
+
+#### Squid
+
+The reason why I choose to install squid on the AWS gateway network, is so the private network can contact and install the latest updates, without having direct access to the Global Internet
+I save money on not using the AWS NAT gateway prices, by creating my own squid, and the nodes are segregated on a private network
+making more security.
+It also allows it CLOUD independence.
+
+#### Terraform Templates and Jinja
+
+The reason why I choose to use Ninja templates was it was an easy way to customize terraform where environment variables are not allowed, and I was able to dynamically choose those nodes with that logic
+
+#### SSH Tunneling
+
+I choose SSH tunneling, so I could run ansible on all nodes, and I copy the jenkins certificate for EASE Of use to all the nodes.
+
+
+
+
+
 
 <a name="prepareaws"></a>
 ### **Preparing AWS For Terraform Deployment**
